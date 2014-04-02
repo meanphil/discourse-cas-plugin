@@ -19,56 +19,45 @@ class CASAuthenticator < ::Auth::Authenticator
   end
 
   def after_authenticate(auth_token)
-    result = Auth::Result.new
+    # IFAD Customization to fetch all user information automatically from People
+    #
+    person = People::Client::Person.find(auth_token[:uid])
+
     #if the email address is set in the extra attributes and we know the accessor use it here
     email = auth_token[:extra][SiteSetting.cas_sso_email] if (auth_token[:extra] && auth_token[:extra][SiteSetting.cas_sso_email])
     #if we could not get the email address from the extra attributes try to set it base on the username
     email ||= unless SiteSetting.cas_sso_email_domain.nil?
-                "#{auth_token[:uid]}@#{SiteSetting.cas_sso_email_domain}"
-              else
-                auth_token[:uid]
-              end
-
-    result.email = email
-    result.email_valid = true
-
-    result.username = auth_token[:uid]
-
-    result.name = if auth_token[:extra] && auth_token[:extra][SiteSetting.cas_sso_name]
-                    auth_token[:extra][SiteSetting.cas_sso_name]
-                  else
-                    auth_token[:uid]
-                  end
-
-    # plugin specific data storage
-    current_info = ::PluginStore.get("cas", "cas_uid_#{result.username}")
-
-    # Create the user if possible.  In the case CAS we really do not want user
-    # to change their usernames and email addresses as that can mess things up.
-    # So by default this is turned on.
-    if SiteSetting.cas_sso_user_auto_create && User.find_by_email(email).nil?
-      user = User.create(name: result.name,
-                         email: result.email,
-                         username: result.username,
-                         approved: SiteSetting.cas_sso_user_approved)
-      ::PluginStore.set("cas", "cas_uid_#{user.username}", {user_id: user.id})
-      result.email_valid = true
+      "#{auth_token[:uid]}@#{SiteSetting.cas_sso_email_domain}"
+    else
+      auth_token[:email] || auth_token[:uid]
     end
 
-    result.user =
-        if current_info
-          User.where(id: current_info[:user_id]).first
-        elsif user = User.where(username: result.username).first
-          #here we get a user that has already been created but has never logged in with cas. This
-          # could happen if accounts are being pre provisionsed in an edu environment. We
-          #need to get the users and set the cas plugin information as in after_create_account
-          user.update_attribute(:approved, SiteSetting.cas_sso_user_approved)
-          ::PluginStore.set("cas", "cas_uid_#{result.username}", {user_id: user.id})
-          user
-        end
-    result.user ||= User.where(email: email).first
+    user =
+      User.where(username: person.account_name).first ||
+      User.new(
+        username: person.account_name,
+            name: [person.first_name, person.last_name].join(' '),
+           email: person.email,
+         bio_raw: person.bio,
+           admin: false,
+          active: true,
+        approved: SiteSetting.cas_sso_user_approved
+      ).tap(&:save!)
 
-    result
+    ::PluginStore.set("cas", "cas_uid_#{user.username}", {user_id: user.id})
+
+
+    Auth::Result.new.tap do |result|
+      result.email       = email
+      result.email_valid = true
+
+      result.username    = user.username
+      result.name        = user.name
+      result.extra_data  = { cas_user_id: user.username }
+
+      result.user        = user
+    end
+
   end
 
   def after_create_account(user, auth)
