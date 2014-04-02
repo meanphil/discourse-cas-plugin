@@ -1,12 +1,12 @@
-cas_sso
-=======
-CAS based single sign on for Discourse in plugin form.
+discourse-cas-plugin
+====================
 
+CAS based single sign on for Discourse in plugin form.
 
 Installation
 ------------
 
-* Run `rake plugin:install repo=https://github.com/eriko/cas_sso` in your discourse directory
+* Run `rake plugin:install repo=https://github.com/ifad/discourse-cas-plugin` in your discourse directory
 * In development mode, run `rake assets:clean`
 * In production, recompile your assets: `rake assets:precompile`
 
@@ -14,7 +14,7 @@ Until the omniauth-cas gem that supports dynamic setup is released (it should be
 a forked version that I maintain.
 
 The initial restart maybe a little slower than usual as the plugin also installs any plugins that it needs.
-In this case that is `addressable` and my forked `eriko-omniauth-cas`.  This slow down should be a one
+In this case that is `addressable` and @eriko's forked `eriko-omniauth-cas`.  This slow down should be a one
 time event unless the plugin is updated.
 
 
