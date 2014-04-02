@@ -38,11 +38,12 @@ class CASAuthenticator < ::Auth::Authenticator
         username: person.account_name,
             name: [person.first_name, person.last_name].join(' '),
            email: person.email,
-         bio_raw: person.bio,
            admin: false,
           active: true,
         approved: SiteSetting.cas_sso_user_approved
       ).tap(&:save!)
+
+    user.update_column :bio_cooked, person.bio
 
     ::PluginStore.set("cas", "cas_uid_#{user.username}", {user_id: user.id})
 
