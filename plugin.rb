@@ -38,6 +38,7 @@ class CASAuthenticator < ::Auth::Authenticator
         username: person.account_name,
             name: [person.first_name, person.last_name].join(' '),
            email: person.email,
+         website: People::Client.client.config.base_uri + '/' + person.account_name,
            admin: false,
           active: true,
         approved: SiteSetting.cas_sso_user_approved
